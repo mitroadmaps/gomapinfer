@@ -1,7 +1,8 @@
 package googlemaps
 
 import (
-	"../common"
+	//"../common"
+	"github.com/mitroadmaps/gomapinfer/common"
 
 	"math"
 )
