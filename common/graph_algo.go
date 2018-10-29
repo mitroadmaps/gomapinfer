@@ -16,6 +16,9 @@ type ShortestPathParams struct {
 
 	// terminate search once we reach any of these nodes
 	StopNodes []*Node
+
+	// override edge length
+	EdgeLengths map[int]float64
 }
 
 func (params ShortestPathParams) IsStopNode(node *Node) bool {
@@ -55,6 +58,10 @@ func (result ShortestPathResult) GetPathTo(node *Node) []*Node {
 	return path
 }
 
+func (result ShortestPathResult) GetFullPathTo(node *Node) []*Node {
+	return append([]*Node{result.source}, result.GetPathTo(node)...)
+}
+
 func (graph *Graph) ShortestPath(src *Node, params ShortestPathParams) ShortestPathResult {
 	// use Dijkstra's algorithm
 	distances := make(map[int]float64)
@@ -85,7 +92,13 @@ func (graph *Graph) ShortestPath(src *Node, params ShortestPathParams) ShortestP
 		}
 
 		for _, edge := range closestNode.Out {
-			d := closestDistance + edge.Segment().Length()
+			var edgeLength float64
+			if l, ok := params.EdgeLengths[edge.ID]; ok {
+				edgeLength = l
+			} else {
+				edgeLength = edge.Segment().Length()
+			}
+			d := closestDistance + edgeLength
 			if remaining[edge.Dst.ID] && d < distances[edge.Dst.ID] {
 				distances[edge.Dst.ID] = d
 				backpointers[edge.Dst.ID] = closestNode.ID
@@ -216,7 +229,6 @@ func (graph *Graph) Follow(params FollowParams) []EdgePos {
 }
 
 // A*
-
 
 type AstarParams struct {
 	// maximum distance to travel from src

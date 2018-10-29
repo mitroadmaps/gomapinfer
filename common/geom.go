@@ -308,3 +308,7 @@ func (rect Rectangle) Bounds() Rectangle {
 func (rect Rectangle) Intersects(other Rectangle) bool {
 	return rect.Max.Y >= other.Min.Y && other.Max.Y >= rect.Min.Y && rect.Max.X >= other.Min.X && other.Max.X >= rect.Min.X
 }
+
+func (rect Rectangle) Diagonal() float64 {
+	return rect.Min.Distance(rect.Max)
+}

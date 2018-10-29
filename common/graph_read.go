@@ -83,7 +83,7 @@ func ReadDaviesMap(verticesFname string, edgesFname string) (*Graph, error) {
 					return err
 				}
 			}
-			parts := strings.Split(line, " ")
+			parts := strings.Split(strings.TrimSpace(line), " ")
 			if len(parts) != 3 {
 				return fmt.Errorf("invalid line: %s", line)
 			}
@@ -113,7 +113,7 @@ func ReadDaviesMap(verticesFname string, edgesFname string) (*Graph, error) {
 					return err
 				}
 			}
-			parts := strings.Split(line, " ")
+			parts := strings.Split(strings.TrimSpace(line), " ")
 			if len(parts) != 2 {
 				return fmt.Errorf("invalid line: %s", line)
 			} else if vertexIDMap[parts[0]] == nil || vertexIDMap[parts[1]] == nil {
@@ -244,6 +244,62 @@ func ReadKharitaMap(fname string) (*Graph, error) {
 		node2 := getOrCreateVertex(parts[3], parts[4])
 		if node1 == nil || node2 == nil {
 			return nil, fmt.Errorf("invalid line: %s", line)
+		}
+		graph.AddEdge(node1, node2)
+	}
+
+	return graph, nil
+}
+
+func ReadEdelkampMap(fname string) (*Graph, error) {
+	file, err := os.Open(fname)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	m := make(map[[2]string]*Node)
+	graph := &Graph{}
+
+	getOrCreateVertex := func(lonstr string, latstr string) *Node {
+		k := [2]string{lonstr, latstr}
+		if m[k] != nil {
+			return m[k]
+		}
+		lon, errlon := strconv.ParseFloat(lonstr, 64)
+		lat, errlat := strconv.ParseFloat(latstr, 64)
+		if errlat != nil || errlon != nil {
+			return nil
+		}
+		node := graph.AddNode(Point{lon, lat})
+		m[k] = node
+		return node
+	}
+
+	for {
+		line1, _ := reader.ReadString('\n')
+		line2, _ := reader.ReadString('\n')
+		line3, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return nil, err
+			}
+		}
+		line1 = strings.TrimSpace(line1)
+		line2 = strings.TrimSpace(line2)
+		line3 = strings.TrimSpace(line3)
+		if line3 != "" {
+			return nil, fmt.Errorf("expected blank line but got: %s", line3)
+		}
+		parts1 := strings.Split(line1, ",")
+		parts2 := strings.Split(line2, ",")
+		node1 := getOrCreateVertex(parts1[1], parts1[0])
+		node2 := getOrCreateVertex(parts2[1], parts2[0])
+		if node1 == nil || node2 == nil {
+			return nil, fmt.Errorf("invalid line: %s", line1)
 		}
 		graph.AddEdge(node1, node2)
 	}

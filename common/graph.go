@@ -20,6 +20,21 @@ func (node *Node) String() string {
 	return fmt.Sprintf("Node(%v)", node.Point)
 }
 
+func (node *Node) RemoveEdge(edge *Edge) {
+	filterFunc := func(edges []*Edge) []*Edge {
+		var n []*Edge
+		for _, e := range edges {
+			if e == edge {
+				continue
+			}
+			n = append(n, e)
+		}
+		return n
+	}
+	node.In = filterFunc(node.In)
+	node.Out = filterFunc(node.Out)
+}
+
 type Edge struct {
 	ID int
 	Src *Node
@@ -54,6 +69,15 @@ func (edge *Edge) ClosestPos(point Point) EdgePos {
 		Edge: edge,
 		Position: edge.Segment().Project(point, false),
 	}
+}
+
+func (edge *Edge) GetOpposite() *Edge {
+	for _, other := range edge.Dst.Out {
+		if other.Dst == edge.Src {
+			return other
+		}
+	}
+	return nil
 }
 
 func (edge *Edge) String() string {
@@ -103,11 +127,18 @@ func (graph *Graph) AddNode(point Point) *Node {
 	return node
 }
 
-func (graph *Graph) AddEdge(src *Node, dst *Node) *Edge {
+func (graph *Graph) FindEdge(src *Node, dst *Node) *Edge {
 	for _, edge := range src.Out {
 		if edge.Dst == dst {
 			return edge
 		}
+	}
+	return nil
+}
+
+func (graph *Graph) AddEdge(src *Node, dst *Node) *Edge {
+	if edge := graph.FindEdge(src, dst); edge != nil {
+		return edge
 	}
 	edge := &Edge{
 		ID: len(graph.Edges),
@@ -159,9 +190,10 @@ func (graph *Graph) Clone() *Graph {
 	return other
 }
 
-func (graph *Graph) FilterEdges(badEdges map[int]bool) *Graph {
+func (graph *Graph) FilterEdgesWithMaps(badEdges map[int]bool) (*Graph, map[int]*Node, map[int]*Edge) {
 	other := &Graph{}
 	nodeMap := make(map[int]*Node)
+	edgeMap := make(map[int]*Edge)
 	for _, edge := range graph.Edges {
 		if badEdges[edge.ID] {
 			continue
@@ -171,9 +203,15 @@ func (graph *Graph) FilterEdges(badEdges map[int]bool) *Graph {
 				nodeMap[node.ID] = other.AddNode(node.Point)
 			}
 		}
-		other.AddEdge(nodeMap[edge.Src.ID], nodeMap[edge.Dst.ID])
+		nedge := other.AddEdge(nodeMap[edge.Src.ID], nodeMap[edge.Dst.ID])
+		edgeMap[edge.ID] = nedge
 	}
-	return other
+	return other, nodeMap, edgeMap
+}
+
+func (graph *Graph) FilterEdges(badEdges map[int]bool) *Graph {
+	ngraph, _, _ := graph.FilterEdgesWithMaps(badEdges)
+	return ngraph
 }
 
 func ReadGraph(fname string) (*Graph, error) {
@@ -252,6 +290,28 @@ func (graph *Graph) Write(fname string) error {
 	}
 
 	return nil
+}
+
+func (graph *Graph) SplitEdge(edge *Edge, length float64) *Edge {
+	point := edge.Segment().PointAtFactor(length, false)
+	newNode := graph.AddNode(point)
+
+	origDst := edge.Dst
+	oppEdge := edge.GetOpposite()
+
+	edge.Dst = newNode
+	origDst.RemoveEdge(edge)
+	newNode.In = append(newNode.In, edge)
+	remainderEdge := graph.AddEdge(newNode, origDst)
+
+	if oppEdge != nil {
+		oppEdge.Src = newNode
+		origDst.RemoveEdge(oppEdge)
+		newNode.Out = append(newNode.Out, oppEdge)
+		graph.AddEdge(origDst, newNode)
+	}
+
+	return remainderEdge
 }
 
 func VisualizeGraphs(scale float64, fname string, graphs []*Graph, traces []*Trace) error {
