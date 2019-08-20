@@ -89,6 +89,14 @@ func (rs RoadSegment) ClosestPos(p Point) EdgePos {
 	return bestPos
 }
 
+func (rs RoadSegment) Bounds() Rectangle {
+	r := EmptyRectangle
+	for _, edge := range rs.Edges {
+		r = r.ExtendRect(edge.Segment().Bounds())
+	}
+	return r
+}
+
 // Get road segments, i.e., sequences of edges between junctions.
 // Junctions are vertices where the number of incident edges != 2.
 // This function only works for bidirectional graphs.

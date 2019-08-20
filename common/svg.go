@@ -155,6 +155,33 @@ func CreateSVG(fname string, elements [][]Boundable, options SVGOptions) error {
 				style += fmt.Sprintf(";opacity:%f", weight)
 			}
 			canvas.Line(srcX, srcY, dstX, dstY, style)
+		case Rectangle:
+			if !r.Intersects(element) {
+				return nil
+			}
+			srcX, srcY := transform(element.Min)
+			dstX, dstY := transform(element.Max)
+			var minX, minY int
+			var maxX, maxY int
+			if srcX < dstX {
+				minX = srcX
+				maxX = dstX
+			} else {
+				minX = dstX
+				maxX = srcX
+			}
+			if srcY < dstY {
+				minY = srcY
+				maxY = dstY
+			} else {
+				minY = dstY
+				maxY = srcY
+			}
+			style := fmt.Sprintf("fill:%s", color)
+			if weight != 1 {
+				style += fmt.Sprintf(";opacity:%f", weight)
+			}
+			canvas.Rect(minX, minY, maxX - minX, maxY - minY, style)
 		case *Graph:
 			for _, edge := range element.Edges {
 				if err := drawElement(edge.Segment(), color, weight, width); err != nil {

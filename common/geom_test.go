@@ -120,3 +120,21 @@ func TestRectangleIntersects(t *testing.T) {
 	check(Rectangle{Point{0, 0}, Point{1, 1}}, Rectangle{Point{-1, -1}, Point{0.1, 0.1}}, true)
 	check(Rectangle{Point{0, 0}, Point{1, 1}}, Rectangle{Point{0.5, 0.5}, Point{0.6, 0.6}}, true)
 }
+
+func TestPolygonContains(t *testing.T) {
+	check := func(poly Polygon, p Point, expected bool) {
+		got := poly.Contains(p)
+		if got != expected {
+			t.Fatalf("expected %v for %v.Contains(%v), but got %v", expected, poly, p, got)
+		}
+	}
+	poly := Polygon{
+		Point{0, 0},
+		Point{1, 0},
+		Point{1, 1},
+	}
+	check(poly, Point{0, 1}, false)
+	check(poly, Point{0.5, 0.1}, true)
+	check(poly, Point{0.9, 0.5}, true)
+	check(poly, Point{1.1, 0.5}, false)
+}

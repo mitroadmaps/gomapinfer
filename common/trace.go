@@ -38,15 +38,19 @@ func (trace *Trace) LastObservation() *Observation {
 	}
 }
 
+func (trace *Trace) LonLatToMeters(origin Point) {
+	for i := range trace.Observations {
+		trace.Observations[i].Point = trace.Observations[i].Point.LonLatToMeters(origin)
+	}
+}
+
 type Traces []*Trace
 
 // Convert coordinate system from longitude/latitude to Cartesian meters.
 // This assumes that the GPS sequences cover a small region so that curvature can be ignored.
 func (traces Traces) LonLatToMeters(origin Point) {
 	for _, trace := range traces {
-		for i := range trace.Observations {
-			trace.Observations[i].Point = trace.Observations[i].Point.LonLatToMeters(origin)
-		}
+		trace.LonLatToMeters(origin)
 	}
 }
 

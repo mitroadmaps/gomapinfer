@@ -2,6 +2,8 @@ package common
 
 import (
 	"math"
+	"math/rand"
+	"sort"
 )
 
 type Boundable interface {
@@ -284,6 +286,10 @@ func (rect Rectangle) Contains(point Point) bool {
 	return point.X >= rect.Min.X && point.X <= rect.Max.X && point.Y >= rect.Min.Y && point.Y <= rect.Max.Y
 }
 
+func (rect Rectangle) ContainsRect(other Rectangle) bool {
+	return rect.Contains(other.Min) && rect.Contains(other.Max)
+}
+
 func (rect Rectangle) Lengths() Point {
 	return rect.Max.Sub(rect.Min)
 }
@@ -311,4 +317,179 @@ func (rect Rectangle) Intersects(other Rectangle) bool {
 
 func (rect Rectangle) Diagonal() float64 {
 	return rect.Min.Distance(rect.Max)
+}
+
+func (rect Rectangle) Center() Point {
+	return rect.Min.Add(rect.Max).Scale(0.5)
+}
+
+func (rect Rectangle) Intersection(other Rectangle) Rectangle {
+	intersection := Rectangle{
+		Min: Point{math.Max(rect.Min.X, other.Min.X), math.Max(rect.Min.Y, other.Min.Y)},
+		Max: Point{math.Min(rect.Max.X, other.Max.X), math.Min(rect.Max.Y, other.Max.Y)},
+	}
+	if intersection.Max.X <= intersection.Min.X {
+		intersection.Max.X = intersection.Min.X
+	}
+	if intersection.Max.Y <= intersection.Min.Y {
+		intersection.Max.Y = intersection.Min.Y
+	}
+	return intersection
+}
+
+func (rect Rectangle) Area() float64 {
+	return (rect.Max.X - rect.Min.X) * (rect.Max.Y - rect.Min.Y)
+}
+
+func (rect Rectangle) ToPolygon() Polygon {
+	return Polygon{
+		rect.Min,
+		Point{rect.Min.X, rect.Max.Y},
+		rect.Max,
+		Point{rect.Max.X, rect.Min.Y},
+	}
+}
+
+type Polygon []Point
+
+func (poly Polygon) Segments() []Segment {
+	var segments []Segment
+	for i := range poly {
+		cur := poly[i]
+		next := poly[(i+1)%len(poly)]
+		segments = append(segments, Segment{cur, next})
+	}
+	return segments
+}
+
+func (poly Polygon) Bounds() Rectangle {
+	r := EmptyRectangle
+	for _, p := range poly {
+		r = r.Extend(p)
+	}
+	return r
+}
+
+// Ray casting algorithm (https://stackoverflow.com/questions/217578/how-can-i-determine-whether-a-2d-point-is-within-a-polygon).
+// We count the number of polygon segments that a ray from outside the polygon to p intersects.
+// even -> p is outside, odd -> p is inside
+func (poly Polygon) Contains(p Point) bool {
+	bounds := poly.Bounds()
+	if !bounds.Contains(p) {
+		return false
+	}
+	// try a few times to get a rayStart that doesn't come close to any polygon point
+	segments := poly.Segments()
+	lengths := poly.Bounds().Lengths()
+	magnitude := lengths.Magnitude()
+	threshold := lengths.Scale(1/100).Magnitude()
+	// smallBounds contains some padding, bigBounds contains more padding
+	smallBounds := poly.Bounds().AddTol(threshold)
+	bigBounds := poly.Bounds().AddTol(magnitude)
+	sampleRayStart := func() Point {
+		for {
+			p := Point{bigBounds.Lengths().X * rand.Float64(), bigBounds.Lengths().Y * rand.Float64()}
+			p = p.Add(bigBounds.Min)
+			if !smallBounds.Contains(p) {
+				return p
+			}
+		}
+	}
+	var ray Segment
+	for i := 0; i < 5; i++ {
+		rayStart := sampleRayStart()
+		vector := rayStart.Sub(p)
+		vector = vector.Scale(10*magnitude / vector.Magnitude())
+		// not actually a ray
+		ray = Segment{p, p.Add(vector)}
+		good := true
+		for _, p := range poly {
+			if ray.Distance(p) < threshold {
+				good = false
+			}
+		}
+		if good {
+			break
+		}
+	}
+	// count intersections
+	var count int = 0
+	for _, segment := range segments {
+		if segment.Intersection(ray) != nil {
+			count++
+		}
+	}
+	return count % 2 == 1
+}
+
+func (poly Polygon) Distance(p Point) float64 {
+	if poly.Contains(p) {
+		return 0
+	}
+	segments := poly.Segments()
+	var minDistance = segments[0].Distance(p)
+	for _, segment := range segments[1:] {
+		minDistance = math.Min(minDistance, segment.Distance(p))
+	}
+	return minDistance
+}
+
+func (poly Polygon) SegmentIntersections(segment Segment) []Point {
+	var intersections []Point
+	for _, polySegment := range poly.Segments() {
+		intersection := polySegment.Intersection(segment)
+		if intersection != nil {
+			intersections = append(intersections, *intersection)
+		}
+	}
+	return intersections
+}
+
+// from https://github.com/Ch3ck/algo/blob/master/convexHull/convexHull.go
+func GetConvexHull(points []Point) Polygon {
+	if len(points) == 0 {
+		return Polygon{}
+	}
+
+	sort.Slice(points, func(i, j int) bool {
+		return points[i].X < points[j].X || (points[i].X == points[j].X && points[i].Y < points[j].Y)
+	})
+
+	hull := Polygon{points[0]}
+	count := 1
+
+	crossProduct := func(o Point, a Point, b Point) float64 {
+		return a.Sub(o).Cross(b.Sub(o))
+	}
+
+	// find the lower hull
+	for i := 1; i < len(points); i++ {
+		// remove points which are not part of the lower hull
+		for count > 1 && crossProduct(hull[count-2], hull[count-1], points[i]) < 0 {
+			count--
+			hull = hull[:count]
+		}
+
+		// add a new better point than the removed ones
+		hull = append(hull, points[i])
+		count++
+	}
+
+	// our base counter for the upper hull
+	count0 := count
+
+	// find the upper hull
+	for i := len(points) - 2; i >= 0; i-- {
+		// remove points which are not part of the upper hull
+		for count-count0 > 0 && crossProduct(hull[count-2], hull[count-1], points[i]) < 0 {
+			count--
+			hull = hull[:count]
+		}
+
+		// add a new better point than the removed ones
+		hull = append(hull, points[i])
+		count++
+	}
+
+	return hull[0:len(hull)-1]
 }

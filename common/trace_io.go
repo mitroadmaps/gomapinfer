@@ -92,6 +92,8 @@ func LoadCartelTraces(tracePath string) (Traces, error) {
 type CMTOptions struct {
 	SetMetadata bool
 	Limit int
+	CheckFunc func(tripID int, t time.Time, p Point, speed float64, heading float64) bool
+	TimeBreak time.Duration
 }
 
 func LoadCMTTraces(tracePath string, rect *Rectangle, options CMTOptions) (Traces, error) {
@@ -105,6 +107,7 @@ func LoadCMTTraces(tracePath string, rect *Rectangle, options CMTOptions) (Trace
 	var traces Traces
 	var currentTrace *Trace
 	var currentTripID int
+	var lastObs Observation
 
 	parseLine := func(line string) (tripID int, t time.Time, longitude float64, latitude float64, speed float64, heading float64, err error) {
 		parts := strings.Split(line, ",")
@@ -174,8 +177,11 @@ func LoadCMTTraces(tracePath string, rect *Rectangle, options CMTOptions) (Trace
 				currentTrace = nil
 			}
 			continue
+		} else if options.CheckFunc != nil && !options.CheckFunc(tripID, t, point, speed, heading) {
+			continue
 		}
-		if currentTrace == nil || currentTripID != tripID {
+
+		if currentTrace == nil || currentTripID != tripID || (options.TimeBreak > 0 && t.Sub(lastObs.Time) > options.TimeBreak) {
 			if options.Limit > 0 && len(traces) >= options.Limit {
 				break
 			}
@@ -194,6 +200,7 @@ func LoadCMTTraces(tracePath string, rect *Rectangle, options CMTOptions) (Trace
 			}
 		}
 		currentTrace.Observations = append(currentTrace.Observations, &obs)
+		lastObs = obs
 	}
 
 	return traces, nil

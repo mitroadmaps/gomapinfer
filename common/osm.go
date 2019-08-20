@@ -72,6 +72,7 @@ type OSMOptions struct {
 	TunnelEdges []map[int]bool
 	Bytes []byte
 	CustomBlacklist []string
+	CustomWhitelist []string
 	IncludeRailway bool
 }
 
@@ -383,8 +384,12 @@ func LoadOSMMultiple2(path string, regions []Rectangle, options OSMOptions) ([]*
 	}
 
 	blacklist := HIGHWAY_BLACKLIST
+	asWhitelist := false
 	if options.CustomBlacklist != nil {
 		blacklist = options.CustomBlacklist
+	} else if options.CustomWhitelist != nil {
+		blacklist = options.CustomWhitelist
+		asWhitelist = true
 	}
 
 	count = 0
@@ -395,9 +400,13 @@ func LoadOSMMultiple2(path string, regions []Rectangle, options OSMOptions) ([]*
 			if !ok && options.IncludeRailway {
 				_, ok = v.Tags["railway"]
 			}
-			if !ok || IsOSMBlacklistedWithList(highway, blacklist) {
+			if !ok {
 				return
 			} else if len(v.NodeIDs) < 2 {
+				return
+			}
+			isBlacklisted := IsOSMBlacklistedWithList(highway, blacklist)
+			if (!asWhitelist && isBlacklisted) || (asWhitelist && !isBlacklisted) {
 				return
 			}
 
