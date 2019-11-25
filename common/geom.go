@@ -279,6 +279,13 @@ var EmptyRectangle Rectangle = Rectangle{
 	Max: Point{math.Inf(-1), math.Inf(-1)},
 }
 
+func Rect(sx, sy, ex, ey float64) Rectangle {
+	return Rectangle{
+		Point{sx, sy},
+		Point{ex, ey},
+	}
+}
+
 func (rect Rectangle) Extend(point Point) Rectangle {
 	return Rectangle{
 		Min: Point{
