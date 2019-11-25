@@ -244,6 +244,20 @@ func (segment Segment) Intersection(other Segment) *Point {
 	return &p
 }
 
+// sample the segment discretely at some frequency (in terms of distance between points)
+func (segment Segment) Sample(d float64) []Point {
+	points := []Point{segment.Start}
+	cur := segment.Start
+	for cur.Distance(segment.End) > d {
+		vector := segment.End.Sub(cur)
+		vector = vector.Scale(d / vector.Magnitude())
+		cur = cur.Add(vector)
+		points = append(points, cur)
+	}
+	points = append(points, segment.End)
+	return points
+}
+
 type Line struct {
 	A Point
 	B Point
