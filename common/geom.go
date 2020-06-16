@@ -371,6 +371,15 @@ func (rect Rectangle) ToPolygon() Polygon {
 	}
 }
 
+func (rect Rectangle) IOU(other Rectangle) float64 {
+	intersectArea := rect.Intersection(other).Area()
+	unionArea := rect.Area() + other.Area() - intersectArea
+	if unionArea <= 1e-8 {
+		return 0
+	}
+	return intersectArea / unionArea
+}
+
 type Polygon []Point
 
 func (poly Polygon) Segments() []Segment {
