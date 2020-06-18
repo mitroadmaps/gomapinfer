@@ -374,3 +374,15 @@ func ToGray(pix [][][3]uint8) [][]uint8 {
 	}
 	return n
 }
+
+func FromGray(pix [][]uint8) [][][3]uint8 {
+	n := MakeImage(len(pix), len(pix[0]), [3]uint8{0, 0, 0})
+	for i := range n {
+		for j := range n[i] {
+			n[i][j][0] = pix[i][j]
+			n[i][j][1] = pix[i][j]
+			n[i][j][2] = pix[i][j]
+		}
+	}
+	return n
+}
