@@ -314,6 +314,21 @@ func (graph *Graph) SplitEdge(edge *Edge, length float64) *Edge {
 	return remainderEdge
 }
 
+func GraphFromEdges(edges []*Edge) *Graph {
+	g := &Graph{}
+	nodemap := make(map[int]*Node)
+	for _, edge := range edges {
+		if nodemap[edge.Src.ID] == nil {
+			nodemap[edge.Src.ID] = g.AddNode(edge.Src.Point)
+		}
+		if nodemap[edge.Dst.ID] == nil {
+			nodemap[edge.Dst.ID] = g.AddNode(edge.Dst.Point)
+		}
+		g.AddEdge(nodemap[edge.Src.ID], nodemap[edge.Dst.ID])
+	}
+	return g
+}
+
 func VisualizeGraphs(scale float64, fname string, graphs []*Graph, traces []*Trace) error {
 	if len(graphs) == 0 {
 		return fmt.Errorf("at least one graph must be provided")
