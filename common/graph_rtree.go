@@ -23,7 +23,7 @@ type edgeSpatial struct {
 }
 
 func (e *edgeSpatial) Bounds() rtreego.Rect {
-    isEmpty := reflect.DeepEqual(rtreego.Rect{}, e.rect)
+	isEmpty := reflect.DeepEqual(rtreego.Rect{}, e.rect)
 	if isEmpty {
 		r := e.edge.Src.Point.Rectangle()
 		r = r.Extend(e.edge.Dst.Point)
