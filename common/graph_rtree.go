@@ -4,6 +4,7 @@ import (
 	"github.com/dhconnelly/rtreego"
 
 	"math"
+	"reflect"
 )
 
 func RtreegoRect(r Rectangle) rtreego.Rect {
@@ -22,6 +23,12 @@ type edgeSpatial struct {
 }
 
 func (e *edgeSpatial) Bounds() rtreego.Rect {
+    isEmpty := reflect.DeepEqual(rtreego.Rect{}, e.rect)
+	if isEmpty {
+		r := e.edge.Src.Point.Rectangle()
+		r = r.Extend(e.edge.Dst.Point)
+		e.rect = RtreegoRect(r)
+	}
 	return e.rect
 }
 
